@@ -3,10 +3,13 @@ Local:    flask --app web.app run --debug
 Render:   gunicorn web.app:app
 """
 import os
+import sys
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, abort, jsonify
 
 load_dotenv()
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from simtele import bd, servicio                                  # noqa: E402
 from simtele.escenarios import CASOS, ESCENARIOS, TIPOS, ETIQUETA  # noqa: E402

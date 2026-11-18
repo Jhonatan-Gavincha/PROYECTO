@@ -59,7 +59,9 @@ def get_engine():
             raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             url = "sqlite:///" + os.path.join(raiz, "simtele.db")
         if url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql://", 1)
+            url = "postgresql+psycopg2://" + url[len("postgres://"):]
+        elif url.startswith("postgresql://"):
+            url = "postgresql+psycopg2://" + url[len("postgresql://"):]
         if url.startswith("sqlite"):
             kw = {}
         _engine = create_engine(url, **kw)
