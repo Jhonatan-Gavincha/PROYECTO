@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}SIMTELE-RISK{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}">
+</head>
+<body>
+<header class="barra">
+  <a class="marca" href="{{ url_for('inicio') }}">SIMTELE-RISK</a>
+  <nav>
+    <a href="{{ url_for('inicio') }}">Inicio</a>
+    {% for slug, c in CASOS.items() %}<a href="{{ url_for('modulo', slug=slug) }}">{{ c.nombre.split(' ')[0] }}</a>{% endfor %}
+    <a href="{{ url_for('historial') }}">Historial</a>
+  </nav>
+</header>
+<main>{% block contenido %}{% endblock %}</main>
+<footer>Simulador educativo de Métodos Numéricos. Datos sintéticos: no representa componentes reales de ningún sistema.</footer>
+</body>
+</html>

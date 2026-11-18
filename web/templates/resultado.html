@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block titulo %}Simulación {{ sim.id }} · SIMTELE-RISK{% endblock %}
+{% block contenido %}
+<h1>Simulación #{{ sim.id }} · {{ sim.nombre }} · {{ ETIQUETA[sim.tipo] }}</h1>
+{% if igual is not none %}
+<p class="aviso {{ 'ok' if igual == '1' else 'mal' }}">
+  Relanzada desde la simulación #{{ de }}: resultado {{ 'IDÉNTICO' if igual == '1' else 'DISTINTO' }} (mismos parámetros y semilla).
+</p>{% endif %}
+<p class="meta">Fecha {{ sim.fecha }} UTC · semilla {{ sim.semilla }} · hash <span class="mono">{{ sim.hash_parametros[:16] }}…</span></p>
+
+<h2>Parámetros</h2>
+<table class="chica"><tbody>
+{% for k, v in sim.params.items() %}<tr><td class="mono">{{ k }}</td><td>{{ v }}</td></tr>{% endfor %}
+</tbody></table>
+
+{% for e in sim.ejecuciones %}
+<section class="ejecucion">
+  <h2>{{ e.metodo }} <span class="etiqueta {{ 'ok' if e.convergio else 'mal' }}">{{ 'convergió' if e.convergio else 'no convergió' }}</span></h2>
+  <p>{{ e.valor.mensaje }}{% if e.valor.x is not none %} Aproximación final: <strong class="mono">{{ '%.10g' % e.valor.x }}</strong>{% endif %}
+     · {{ e.valor.n_iter }} iteraciones · {{ '%.3f' % e.tiempo_ms }} ms</p>
+  {% if e.referencia %}<p>Referencia analítica: <span class="mono">{{ e.referencia.t_estrella if e.referencia.t_estrella is defined else e.referencia }}</span></p>{% endif %}
+  {% if e.interpretacion %}
+  <div class="interp">
+    <div class="banderas">
+      {% for k, v in e.interpretacion.banderas.items() %}<span class="bandera {{ 'on' if v else 'off' }}">{{ k.replace('_', ' ') }}</span>{% endfor %}
+    </div>
+    <p>{{ e.interpretacion.texto }}</p>
+  </div>{% endif %}
+  {% if e.iteraciones %}
+  <canvas id="g{{ loop.index }}" height="110"></canvas>
+  <details><summary>Tabla de iteraciones</summary>
+  <table class="chica"><thead><tr><th>k</th><th>x_k</th><th>|f(x_k)|</th><th>Error abs.</th><th>Error rel.</th></tr></thead><tbody>
+  {% for i in e.iteraciones %}<tr><td>{{ i.numero }}</td><td class="mono">{{ '%.10g' % i.aproximacion[0] }}</td>
+    <td class="mono">{{ '%.2e' % i.residual if i.residual is not none else '—' }}</td>
+    <td class="mono">{{ '%.2e' % i.error_abs if i.error_abs is not none else '—' }}</td>
+    <td class="mono">{{ '%.2e' % i.error_rel if i.error_rel is not none else 'NULL' }}</td></tr>{% endfor %}
+  </tbody></table></details>
+  {% endif %}
+</section>
+{% endfor %}
+
+{% if pendientes %}<p class="pend">Métodos de este módulo aún pendientes de implementar: {{ pendientes | join(', ') }}.</p>{% endif %}
+
+<form method="post" action="{{ url_for('relanzar', sid=sim.id) }}"><button type="submit">Relanzar con la misma semilla</button></form>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const datos = {{ sim.ejecuciones | map(attribute='iteraciones') | list | tojson }};
+datos.forEach((its, idx) => {
+  const el = document.getElementById('g' + (idx + 1));
+  if (!el || !its.length || typeof Chart === 'undefined') return;
+  new Chart(el, {type: 'line',
+    data: {labels: its.map(i => i.numero),
+      datasets: [{label: 'Error absoluto', data: its.map(i => i.error_abs), borderWidth: 2, pointRadius: 0},
+                 {label: '|f(x_k)|', data: its.map(i => i.residual), borderWidth: 2, pointRadius: 0}]},
+    options: {scales: {y: {type: 'logarithmic', title: {display: true, text: 'escala log'}},
+                       x: {title: {display: true, text: 'iteración k'}}}}});
+});
+</script>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block contenido %}
+<h1>SIMTELE-RISK</h1>
+<p>Simulador educativo de <strong>Métodos Numéricos</strong> con cuatro casos de estudio. Cada uno se ejecuta en tres escenarios: NORMAL, ESTRÉS y MAL CONDICIONADO. Cada ejecución queda guardada y puede reabrirse o relanzarse desde el <a href="{{ url_for('historial') }}">historial</a>.</p>
+<div class="rejilla">
+  {% for slug, c in CASOS.items() %}
+  <a class="tarjeta" href="{{ url_for('modulo', slug=slug) }}">
+    <h2>{{ c.n }}. {{ c.nombre }}</h2>
+    <p>{{ c.pregunta }}</p>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

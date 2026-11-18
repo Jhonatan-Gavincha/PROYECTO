@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block titulo %}{{ caso.nombre }} · SIMTELE-RISK{% endblock %}
+{% block contenido %}
+<h1>{{ caso.n }}. {{ caso.nombre }}</h1>
+<p><strong>Pregunta:</strong> {{ caso.pregunta }}</p>
+<p class="modelo"><strong>Modelo:</strong> {{ caso.modelo }}</p>
+<p><strong>Métodos del módulo:</strong> {{ caso.metodos | join(', ') }}</p>
+<h2>Escenarios</h2>
+<table>
+  <thead><tr><th>Escenario</th><th>Definición (supuestos sintéticos)</th><th></th></tr></thead>
+  <tbody>
+  {% for t in tipos %}
+  <tr>
+    <td><strong>{{ ETIQUETA[t] }}</strong></td>
+    <td>{{ escenarios[t].descripcion }}</td>
+    <td>
+      <form method="post" action="{{ url_for('ejecutar', slug=slug) }}">
+        <input type="hidden" name="tipo" value="{{ t }}">
+        <button type="submit">Ejecutar</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

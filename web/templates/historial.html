@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block titulo %}Historial · SIMTELE-RISK{% endblock %}
+{% block contenido %}
+<h1>Historial de simulaciones</h1>
+{% if not sims %}<p>Aún no hay simulaciones guardadas. Ejecuta un escenario desde cualquier módulo.</p>{% else %}
+<table>
+  <thead><tr><th>#</th><th>Fecha (UTC)</th><th>Caso</th><th>Escenario</th><th>Estado</th><th>Hash</th><th></th></tr></thead>
+  <tbody>
+  {% for s in sims %}
+  <tr>
+    <td>{{ s.id }}</td><td>{{ s.fecha }}</td><td>{{ s.nombre }}</td><td>{{ ETIQUETA[s.tipo] }}</td>
+    <td>{{ s.estado }}</td><td class="mono">{{ s.hash_parametros[:10] }}…</td>
+    <td><a href="{{ url_for('resultado', sid=s.id) }}">Abrir</a></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}
