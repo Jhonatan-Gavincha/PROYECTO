@@ -2,43 +2,94 @@
 {% from "_macros.html" import icono, escenario with context %}
 {% block titulo %}{{ caso.nombre }} · SIMTELE-RISK{% endblock %}
 {% block contenido %}
-{% set evidencia = {
-  'NORMAL': 'Línea base. Los métodos deben coincidir con la solución exacta.',
-  'ESTRES': 'Exige más al problema. ¿El método sigue siendo preciso y qué cambia en el riesgo?',
-  'MAL_CONDICIONADO': 'Provoca fallos a propósito: muestra cuándo un método no aplica o el problema es hipersensible.' } %}
+{% set evidencia = {'NORMAL':'Parámetros nominales sintéticos y condiciones numéricas adecuadas.','ESTRES':'Condición más exigente dentro del modelo.','MAL_CONDICIONADO':'Subexperimento matemáticamente sensible con evidencia cuantitativa.'} %}
 <div class="cont">
-  <nav class="migas" aria-label="Ruta"><a href="{{ url_for('inicio') }}">Inicio</a><span aria-hidden="true">/</span><span>{{ caso.nombre }}</span></nav>
-  <header class="tit-mod">
-    <span class="nodo grande">{{ icono(slug) }}</span>
-    <div><h1>{{ caso.nombre }}</h1><p class="lead">{{ caso.pregunta }}</p></div>
-  </header>
+  <header class="tit-mod"><span class="nodo grande">{{ icono(slug) }}</span><div><p class="eyebrow">Módulo · Mi Teleférico La Paz–El Alto (contexto educativo)</p><h1>{{ caso.nombre }}</h1><p class="lead">{{ caso.pregunta }}</p></div></header>
+  {% if error %}<p class="aviso mal" role="alert">{{ error }}</p>{% endif %}
 
-  <div class="dos-col fino">
-    <section class="panel">
-      <h2>Modelo matemático</h2>
-      <p class="formula">{{ caso.modelo }}</p>
-    </section>
-    <section class="panel">
-      <h2>Métodos del módulo</h2>
-      <ul class="chips">{% for m in caso.metodos %}<li>{{ m }}</li>{% endfor %}</ul>
-    </section>
-  </div>
+  {% if caso.contexto %}
+  <section class="panel contexto-panel">
+    <h2 class="ctx-titulo">Contexto de la problemática</h2>
+    <p class="ctx-situacion">{{ caso.contexto.situacion }}</p>
+    <div class="ctx-grid">
+      <div class="ctx-bloque">
+        <h3>Problemática</h3>
+        <p>{{ caso.contexto.problematica }}</p>
+      </div>
+      <div class="ctx-bloque">
+        <h3>Decisión que apoya</h3>
+        <p>{{ caso.contexto.decision }}</p>
+      </div>
+      <div class="ctx-bloque">
+        <h3>Aporte del equipo</h3>
+        <ul class="aportes-lista">{% for a in caso.contexto.aporte_sistemas %}<li>{{ a }}</li>{% endfor %}</ul>
+      </div>
+    </div>
+  </section>
+  {% endif %}
 
-  <h2>Elige un escenario</h2>
+  <section class="panel">
+    <h2>Ficha del modelo matemático</h2>
+    <p><strong>Alcance del modelo:</strong> {{ caso.descripcion }}</p>
+    <div class="math-block modelo-math">\[{{ caso.modelo_latex or caso.modelo }}\]</div>
+    <div class="dos-col fino">
+      <div>
+        <h3>Variables y parámetros</h3>
+        <table class="tabla compacta"><thead><tr><th>Símbolo</th><th>Descripción</th><th>Unidad</th></tr></thead><tbody>
+        {% for v in caso.variables %}<tr><td class="mono">{{ v.simbolo }}</td><td>{{ v.desc }}</td><td>{{ v.unidad }}</td></tr>{% endfor %}
+        </tbody></table>
+      </div>
+      <div>
+        <h3>Hipótesis y alcance</h3>
+        <ul>{% for h in caso.hipotesis %}<li>{{ h }}</li>{% endfor %}</ul>
+        <p class="nota">Datos sintéticos/supuestos con fines educativos. No usar como medición real ni inferencia operacional real.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Métodos del módulo</h2>
+    <ul class="chips">{% for m in caso.metodos %}<li>{{ m }}</li>{% endfor %}</ul>
+  </section>
+
+  <h2>Escenarios y ejecución</h2>
   <div class="escenarios">
     {% for t in tipos %}
+    {% set p = escenarios[t].params %}
     <article class="panel esc-card">
       <h3>{{ escenario(t) }}</h3>
-      <p class="params-txt">{{ escenarios[t].descripcion }}</p>
+      <div class="param-chips">
+        {% for k,v in p.items() %}
+          {% if k != 'semilla' %}
+          {% set sym = PARAM_LATEX.get(k, k) %}
+          {% set val = v if v is string or v is number else v|join(', ') %}
+          <span class="param-chip"><span class="pc-math">\({{ sym }} = {{ val }}\)</span></span>
+          {% endif %}
+        {% endfor %}
+      </div>
       <p class="evid">{{ evidencia[t] }}</p>
-      <form method="post" action="{{ url_for('ejecutar', slug=slug) }}" class="js-run">
+      <form method="post" action="{{ url_for('ejecutar', slug=slug) }}" class="js-run form-param">
         <input type="hidden" name="tipo" value="{{ t }}">
-        <button class="btn" type="submit">Ejecutar</button>
+        <details><summary>Editar parámetros permitidos</summary>
+          <div class="grid-form">
+            {% for k,v in p.items() %}
+            <label><span class="mono">{{ k }}</span>
+              {% if v is sequence and v is not string %}
+                <input name="{{ k }}" value="{{ v|join(',') }}" inputmode="text">
+              {% else %}
+                <input name="{{ k }}" value="{{ v }}" inputmode="decimal" required>
+              {% endif %}
+            </label>
+            {% endfor %}
+            <label><span class="mono">semilla</span><input name="semilla" value="{{ p.get('semilla',42) }}" inputmode="numeric"></label>
+          </div>
+          <p class="nota">Validación backend obligatoria: numéricos finitos, h>0, n_integracion>0 (Simpson par), n>=3, índices ocultos válidos.</p>
+        </details>
+        <button class="btn" type="submit">Ejecutar {{ ETIQUETA[t] }}</button>
       </form>
     </article>
     {% endfor %}
   </div>
-  <p id="estado-carga" class="carga" role="status" hidden>Calculando y guardando la simulación. Si la base de datos estaba inactiva, puede tardar unos segundos.</p>
-  <p class="nota">Cada ejecución se guarda con su semilla y su huella de parámetros, para poder reabrirla o repetirla desde el historial.</p>
+  <p id="estado-carga" class="carga" role="status" hidden>Calculando y guardando la simulación en la base de datos…</p>
 </div>
 {% endblock %}

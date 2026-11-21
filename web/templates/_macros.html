@@ -6,7 +6,6 @@
 {%- else %}<circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="6" r="1.6"/><path d="m7.2 16.8 3.6-3.6M13.2 10.8l3.6-3.6" stroke-dasharray="1.5 2.5"/>
 {%- endif %}</svg>
 {%- endmacro %}
-
 {% macro escenario(tipo) -%}
 {%- set cls = {'NORMAL':'normal','ESTRES':'estres','MAL_CONDICIONADO':'mal'} -%}
 <span class="esc esc-{{ cls[tipo] }}"><i aria-hidden="true"></i>{{ ETIQUETA[tipo] }}</span>

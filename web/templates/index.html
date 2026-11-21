@@ -1,71 +1,20 @@
 {% extends "base.html" %}
 {% from "_macros.html" import icono with context %}
 {% block contenido %}
-<section class="hero">
-  <div class="cont">
-    <h1>¿Qué tan confiable es el número que calculas?</h1>
-    <p class="lead">Cuatro casos de transporte por cable, tres escenarios cada uno. Compara métodos numéricos con la solución exacta y aprende a distinguir un riesgo físico de un problema numérico.</p>
-    <div class="acciones">
-      <a class="btn" href="#modulos">Ver los módulos</a>
-      <a class="btn btn-sec" href="{{ url_for('historial') }}">Abrir historial</a>
-    </div>
+<section class="hero"><div class="cont">
+  <p class="eyebrow">Proyecto educativo · Mi Teleférico La Paz–El Alto · datos sintéticos</p>
+  <h1>Experimentación numérica verificable</h1>
+  <p class="lead">Simulador de métodos numéricos aplicado a problemáticas inspiradas en el transporte por cable urbano. Desde una perspectiva de Ingeniería de Sistemas, integra modelado, simulación, validación numérica, trazabilidad y apoyo a la toma de decisiones.</p>
+</div></section>
+<section class="cont" id="modulos"><h2>Módulos</h2>
+  <div class="grid-mod">
+  {% for slug,c in CASOS.items() %}
+    <article class="panel mod-card"><div class="nodo">{{ icono(slug) }}</div><h3><a href="{{ url_for('modulo', slug=slug) }}">{{ c.nombre }}</a></h3><p class="ctx-mini">{{ c.contexto.situacion[:140] ~ ('…' if c.contexto.situacion|length > 140 else '') }}</p><p>{{ c.pregunta }}</p><p class="nota">{{ c.metodos|length }} métodos · 3 escenarios</p></article>
+  {% endfor %}
   </div>
-  <svg class="cable" id="cable" viewBox="0 0 1200 230" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Ilustración: una cabina avanza por el cable entre dos torres">
-    <path d="M120 63V224M1080 55V224" class="torre"/>
-    <path d="M110 63h20M1070 55h20" class="torre"/>
-    <path d="M0 40Q600 170 1200 30" class="hilo"/>
-    <g transform="translate(336 92)"><path d="M0 0v16" class="hilo"/><rect x="-17" y="16" width="34" height="26" rx="5" class="cab"/><path d="M-10 25h20" class="ven"/></g>
-    <g id="cabina" transform="translate(792 94)"><path d="M0 0v16" class="hilo"/><rect x="-17" y="16" width="34" height="26" rx="5" class="cab acento"/><path d="M-10 25h20" class="ven"/>
-      <animateMotion id="mov" dur="7s" begin="0.4s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".25 .7 .3 1" keyPoints="0;1" path="M-792 -94L0 0" rotate="0"/>
-    </g>
-  </svg>
 </section>
-
-<section class="cont" id="modulos">
-  <h2>Cuatro módulos, una línea</h2>
-  <ol class="linea">
-    {% for slug, c in CASOS.items() %}
-    <li class="estacion">
-      <a class="nodo" href="{{ url_for('modulo', slug=slug) }}" aria-label="Abrir {{ c.nombre }}">{{ icono(slug) }}</a>
-      <div>
-        <h3><a href="{{ url_for('modulo', slug=slug) }}">{{ c.nombre }}</a></h3>
-        <p>{{ c.pregunta }}</p>
-        <p class="metodos">Métodos: {{ c.metodos[:4] | join(', ') }}{% if c.metodos|length > 4 %} y {{ c.metodos|length - 4 }} más{% endif %}.</p>
-      </div>
-    </li>
-    {% endfor %}
-  </ol>
-</section>
-
 <section class="cont dos-col">
-  <div>
-    <h2>Tres escenarios por módulo</h2>
-    <dl class="defs">
-      <dt><span class="esc esc-normal"><i></i>Normal</span></dt><dd>Línea base: los métodos deben coincidir con la solución exacta.</dd>
-      <dt><span class="esc esc-estres"><i></i>Estrés</span></dt><dd>Exige más al problema. Sirve para ver si el método sigue siendo preciso.</dd>
-      <dt><span class="esc esc-mal"><i></i>Mal condicionado</span></dt><dd>Provoca fallos a propósito: muestra cuándo un método no aplica o el problema es hipersensible.</dd>
-    </dl>
-  </div>
-  <div>
-    <h2>Cuatro lecturas de cada resultado</h2>
-    <dl class="defs">
-      <dt>Riesgo físico</dt><dd>El fenómeno supera un límite operativo.</dd>
-      <dt>Alta exigencia</dt><dd>El problema es sano, pero el cálculo es costoso.</dd>
-      <dt>Mal condicionamiento</dt><dd>Un cambio mínimo en los datos cambia mucho la respuesta.</dd>
-      <dt>Falta de convergencia</dt><dd>El algoritmo no logra aproximar la solución.</dd>
-    </dl>
-  </div>
+  <div class="panel"><h2>Escenarios</h2><dl class="defs"><dt>NORMAL</dt><dd>Parámetros nominales y referencia verificable.</dd><dt>ESTRÉS</dt><dd>Mayor exigencia dentro del modelo.</dd><dt>MAL CONDICIONADO</dt><dd>Sensibilidad matemática demostrable, no solo física.</dd></dl></div>
+  <div class="panel"><h2>Evidencia exigida</h2><ul><li>Fórmula, sustitución, iteraciones y criterio de parada.</li><li>Error absoluto/relativo/porcentual, residual y sensibilidad.</li><li>Dos conclusiones: numérica y del problema.</li><li>Guardado y recuperación desde Neon PostgreSQL.</li></ul></div>
 </section>
-
-<script>
-(function () {
-  var mov = document.getElementById('mov'), g = document.getElementById('cabina');
-  if (!mov || !g) return;
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { mov.remove(); return; }
-  /* La cabina recorre el cable desde el extremo izquierdo hasta su posición final */
-  function p(t) { var a = 1 - t; return [2 * a * t * 600 + t * t * 1200, a * a * 40 + 2 * a * t * 170 + t * t * 30]; }
-  var pts = [], i; for (i = 0; i <= 40; i++) { var q = p(0.04 + 0.62 * i / 40); pts.push((i ? 'L' : 'M') + (q[0] - 792).toFixed(1) + ' ' + (q[1] - 94).toFixed(1)); }
-  mov.setAttribute('path', pts.join(' '));
-})();
-</script>
 {% endblock %}

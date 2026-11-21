@@ -1,31 +1,51 @@
-# SIMTELE-RISK (Semana 2)
-Simulador educativo de Métodos Numéricos. Datos sintéticos; no representa sistemas reales.
+# SIMTELE-RISK
+
+Aplicación web educativa (Flask + Neon PostgreSQL) para experimentación numérica verificable sobre 4 casos hipotéticos inspirados en transporte por cable. **Datos sintéticos; no representa sistemas reales ni mediciones reales.**
+
+## Requisitos cumplidos (implementación técnica)
+- 4 módulos: detención, deterioro, oscilaciones, sensores.
+- 3 escenarios por módulo: NORMAL, ESTRÉS, MAL CONDICIONADO.
+- Métodos: Bisección, Newton-Raphson, Secante, Jacobi, Gauss-Seidel, LU, Gradiente conjugado (SPD), Lagrange, Newton diferencias divididas, Spline cúbico natural, Trapecio compuesto, Simpson 1/3, Romberg, RK2 (Heun), RK4.
+- Evidencia por ejecución: datos de entrada, fórmula, sustitución, desarrollo, tabla iteraciones/refinamiento, criterio de parada, estado, verificación, error abs/rel/% (o nota si referencia cero), residual/norma, sensibilidad.
+- Conclusión numérica y conclusión del problema por escenario.
+- Gráficos Chart.js basados en datos reales de ejecución.
+- Persistencia en Neon PostgreSQL/SQLite local con historial, filtros, apertura, relanzado y comparación.
 
 ## Estructura
-- `simtele/`: núcleo numérico (`raices.py`), escenarios, referencias analíticas, `servicio.py` (orquestación e interpretación), `bd.py` (persistencia).
-- `web/`: aplicación Flask (`app.py`, plantillas, estilos).
-- `db/schema_pg.sql`: esquema PostgreSQL (documentación; la app lo crea sola).
-- `tests/`: pruebas con pytest.
+- `web/`: Flask app, templates, static CSS.
+- `simtele/`: escenarios, referencias, métodos numéricos, servicio/orquestación, BD.
+- `db/schema_pg.sql`: esquema SQL.
+- `tests/`: pruebas pytest.
 
-## Local (SQLite)
-```
-python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
+## Ejecución local (SQLite)
+```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-flask --app web.app run --debug                        # http://127.0.0.1:5000
-pytest
+cp .env.example .env   # opcional; sin DATABASE_URL usa simtele.db
+flask --app web.app run --debug
 ```
 
-## Con Neon (PostgreSQL)
-Copia `.env.example` a `.env` y pega la cadena de conexión de Neon en `DATABASE_URL`. No subas `.env` a GitHub.
+## Ejecución con Neon
+En `.env` define:
+```env
+DATABASE_URL=postgresql+psycopg2://USER:PASSWORD@HOST/neondb?sslmode=require
+SECRET_KEY=una-clave-segura
+```
+Luego ejecuta igual con Flask/Gunicorn. La app crea tablas y hace migración aditiva básica.
 
-## Despliegue en Render
-Build: `pip install -r requirements.txt`  ·  Start: `gunicorn web.app:app`
-Variables de entorno: `DATABASE_URL` (Neon) y `SECRET_KEY`.
+## Pruebas
+```bash
+DATABASE_URL=sqlite:////tmp/simtele_test.db ./.venv/bin/python -m pytest -q
+```
 
-## Cómo agregar un método nuevo
-Escribe `f(tipo, params, ref) -> dict` en `simtele/servicio.py` y regístralo en `IMPLEMENTADOS`.
-Devuelve: `metodo, convergio, iteraciones[], x, mensaje, tiempo_ms`.
+## Despliegue Render
+- Build: `pip install -r requirements.txt`
+- Start: `gunicorn web.app:app --bind 0.0.0.0:$PORT --timeout 120`
+- Env vars: `DATABASE_URL`, `SECRET_KEY`
+- Opcional: `PYTHON_VERSION=3.12.3` (o usar `runtime.txt` incluido)
 
-## Reproducibilidad
-Cada simulación guarda semilla y `hash_parametros` (parámetros + versión del modelo + versiones de Python/numpy).
-"Relanzar" repite la corrida y compara el resultado con la original.
+Incluye `Procfile` y `runtime.txt` para despliegue directo.
+
+## Nota académica
+Los escenarios MAL CONDICIONADO se justifican con evidencia matemática (raíz doble, condición de matriz, Lebesgue/nodos, cercanía a resonancia), no solo por exigencia física.

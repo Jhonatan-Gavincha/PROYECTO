@@ -4,39 +4,37 @@
 {% block contenido %}
 <div class="cont">
   <h1>Historial de simulaciones</h1>
+  <form method="get" class="panel filtros-form">
+    <label>Módulo <select name="caso"><option value="">Todos</option>{% for slug,c in CASOS.items() %}<option value="{{ c.nombre }}" {% if caso==c.nombre %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></label>
+    <label>Escenario <select name="tipo"><option value="">Todos</option>{% for t in TIPOS %}<option value="{{ t }}" {% if tipo==t %}selected{% endif %}>{{ ETIQUETA[t] }}</option>{% endfor %}</select></label>
+    <label>Buscar <input name="q" value="{{ q }}" placeholder="módulo, tipo, huella"></label>
+    <button class="btn" type="submit">Filtrar</button>
+  </form>
+
   {% if not sims %}
-  <div class="vacio panel">
-    <h2>Todavía no hay simulaciones</h2>
-    <p>Ejecuta un escenario desde cualquier módulo y aparecerá aquí, listo para reabrir o repetir.</p>
-    <p><a class="btn" href="{{ url_for('modulo', slug='deterioro') }}">Probar con Deterioro</a></p>
-  </div>
+  <div class="vacio panel"><h2>No hay simulaciones</h2><p>Ejecuta un escenario desde cualquier módulo.</p></div>
   {% else %}
-  <div class="filtros" role="group" aria-label="Filtrar por módulo">
-    <button type="button" class="filtro activo" data-f="">Todos</button>
-    {% for slug, c in CASOS.items() %}<button type="button" class="filtro" data-f="{{ c.nombre }}">{{ c.nombre.split(' ')[0] }}</button>{% endfor %}
-  </div>
-  <div class="tabla-wrap">
-  <table class="tabla">
-    <thead><tr><th>N.º</th><th>Fecha (UTC)</th><th>Módulo</th><th>Escenario</th><th>Estado</th><th>Huella</th><th><span class="sr">Acciones</span></th></tr></thead>
-    <tbody>
-    {% for s in sims %}
-    <tr data-caso="{{ s.nombre }}">
-      <td>{{ s.id }}</td><td>{{ s.fecha }}</td><td>{{ s.nombre }}</td><td>{{ escenario(s.tipo) }}</td>
-      <td>{{ s.estado.capitalize() }}</td><td class="mono">{{ s.hash_parametros[:10] }}</td>
-      <td><a class="enlace-fuerte" href="{{ url_for('resultado', sid=s.id) }}">Abrir</a></td>
-    </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  <script>
-  document.querySelectorAll('.filtro').forEach(function (b) {
-    b.addEventListener('click', function () {
-      document.querySelectorAll('.filtro').forEach(function (x) { x.classList.toggle('activo', x === b); });
-      document.querySelectorAll('tbody tr').forEach(function (r) { r.hidden = b.dataset.f && r.dataset.caso !== b.dataset.f; });
-    });
-  });
-  </script>
+  <form method="get" action="{{ url_for('comparar') }}" id="form-comparar">
+  <div class="tabla-wrap"><table class="tabla"><thead><tr><th>Comparar</th><th>ID</th><th>Fecha UTC</th><th>Módulo</th><th>Escenario</th><th>Estado</th><th>Huella</th><th>Acciones</th></tr></thead><tbody>
+  {% for s in sims %}
+  <tr>
+    <td><input type="checkbox" name="ids" value="{{ s.id }}"></td>
+    <td>{{ s.id }}</td><td>{{ s.fecha }}</td><td>{{ s.nombre }}</td><td>{{ escenario(s.tipo) }}</td><td>{{ s.estado }}</td><td class="mono">{{ s.hash_parametros[:12] }}</td>
+    <td class="acciones-tabla">
+      <a class="btn-sm btn-abrir" href="{{ url_for('resultado', sid=s.id) }}">Abrir</a>
+      <button class="btn-sm btn-eliminar" type="submit" form="del-{{ s.id }}">Eliminar</button>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody></table></div>
+  <p class="nota">Selecciona 2-4 simulaciones y pulsa comparar.</p>
+  <button class="btn" type="submit">Comparar seleccionadas</button>
+  </form>
+  {% for s in sims %}
+  <form id="del-{{ s.id }}" method="post" action="{{ url_for('eliminar_simulacion', sid=s.id) }}" onsubmit="return confirm('¿Eliminar simulación {{ s.id }}?');" style="display:none">
+    <input type="hidden" name="caso" value="{{ caso or '' }}"><input type="hidden" name="tipo" value="{{ tipo or '' }}"><input type="hidden" name="q" value="{{ q or '' }}">
+  </form>
+  {% endfor %}
   {% endif %}
 </div>
 {% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import escenario with context %}
+{% block titulo %}Comparar · SIMTELE-RISK{% endblock %}
+{% block contenido %}
+<div class="cont">
+  <h1>Comparación de simulaciones</h1>
+  {% if not sims %}
+  <p class="panel">No hay simulaciones seleccionadas. Ve al <a href="{{ url_for('historial') }}">historial</a> y elige 2-4.</p>
+  {% else %}
+  <div class="tabla-wrap"><table class="tabla compacta"><thead><tr><th>ID</th><th>Módulo</th><th>Escenario</th><th>Fecha</th><th>Huella</th><th>Métodos conv./total</th><th>Conclusión numérica</th></tr></thead><tbody>
+  {% for s in sims %}
+  {% set conv = s.ejecuciones|selectattr('convergio')|list|length %}
+  <tr><td><a href="{{ url_for('resultado', sid=s.id) }}">{{ s.id }}</a></td><td>{{ s.nombre }}</td><td>{{ escenario(s.tipo) }}</td><td>{{ s.fecha }}</td><td class="mono">{{ s.hash_parametros[:12] }}</td><td>{{ conv }}/{{ s.ejecuciones|length }}</td><td>{{ s.conclusiones.numerica if s.conclusiones else '—' }}</td></tr>
+  {% endfor %}
+  </tbody></table></div>
+  {% for s in sims %}
+  <section class="panel"><h2>Sim {{ s.id }} · {{ s.nombre }} · {{ ETIQUETA[s.tipo] }}</h2>
+    <div class="tabla-wrap"><table class="tabla compacta"><thead><tr><th>Método</th><th>Estado</th><th>Error abs</th><th>Error rel</th><th>Residual</th><th>Iter</th></tr></thead><tbody>
+    {% for e in s.ejecuciones %}{% set me = e.metrica_error or {} %}{% set eabs = me.get('error_abs', me.get('error_abs_max')) %}{% set erel = me.get('error_rel', me.get('error_rel_max')) %}{% set rn = me.get('residual_norma', me.get('residual')) %}<tr><td>{{ e.metodo }}</td><td>{{ e.estado_detalle or e.get('estado','—') }}</td><td class="num">{{ '%.2e'|format(eabs) if eabs is not none else '—' }}</td><td class="num">{{ '%.2e'|format(erel) if erel is not none else me.get('error_rel_nota','ND') }}</td><td class="num">{{ '%.2e'|format(rn) if rn is not none and rn is number else '—' }}</td><td>{{ e.iteraciones|length }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

@@ -2,115 +2,155 @@
 {% from "_macros.html" import escenario with context %}
 {% block titulo %}Simulación {{ sim.id }} · SIMTELE-RISK{% endblock %}
 {% block contenido %}
-{% set DIAG = [
-  ('riesgo_fisico', 'Riesgo físico', 'El fenómeno modelado supera un límite operativo, como la distancia disponible.'),
-  ('alta_exigencia', 'Alta exigencia', 'El problema está bien planteado, pero el cálculo es costoso.'),
-  ('mal_condicionamiento', 'Mal condicionamiento', 'Cambios mínimos en los datos producen cambios grandes en la solución, con cualquier método.'),
-  ('falta_convergencia', 'Falta de convergencia', 'El algoritmo no logró aproximar la solución en las condiciones dadas.') ] %}
 <div class="cont">
-  <nav class="migas" aria-label="Ruta"><a href="{{ url_for('historial') }}">Historial</a><span aria-hidden="true">/</span><span>Simulación {{ sim.id }}</span></nav>
   <header class="tit-res">
     <h1>{{ sim.nombre }}</h1>
-    <p class="sub">{{ escenario(sim.tipo) }}<span class="meta">Simulación {{ sim.id }}, {{ sim.fecha }} UTC, semilla {{ sim.semilla }}</span></p>
-    <p class="huella">Huella de parámetros <code class="mono">{{ sim.hash_parametros[:16] }}</code> <button type="button" class="enlace-btn" data-copy="{{ sim.hash_parametros }}">Copiar</button></p>
+    <p class="sub">{{ escenario(sim.tipo) }}</p>
   </header>
 
   {% if igual is not none %}
-  <p class="aviso {{ 'ok' if igual == '1' else 'mal' }}" role="status">
-    Repetida desde la simulación {{ de }}: el resultado es {{ 'IDÉNTICO' if igual == '1' else 'DISTINTO' }} con los mismos parámetros y la misma semilla.
-  </p>{% endif %}
+  <p class="aviso {{ 'ok' if igual == '1' else 'mal' }}">Repetición desde {{ de }}: resultado {{ 'IDÉNTICO' if igual == '1' else 'DISTINTO' }} (mismos parámetros/semilla).</p>
+  {% endif %}
 
-  <details class="panel params-det">
-    <summary>Parámetros del escenario</summary>
-    <dl class="params">{% for k, v in sim.params.items() %}<div><dt class="mono">{{ k }}</dt><dd>{{ v }}</dd></div>{% endfor %}</dl>
-  </details>
+  {% if caso.contexto %}
+  <section class="panel contexto-panel contexto-compacto">
+    <h2 class="ctx-titulo">Contexto de la problemática</h2>
+    <p class="ctx-situacion">{{ caso.contexto.situacion }}</p>
+    <p><strong>Problemática:</strong> {{ caso.contexto.problematica }}</p>
+    <p><strong>Decisión:</strong> {{ caso.contexto.decision }}</p>
+  </section>
+  {% endif %}
+
+  <section class="panel">
+    <h2>Ficha del modelo y parámetros usados</h2>
+    <div class="math-block modelo-math">\[{{ caso.modelo_latex or caso.modelo }}\]</div>
+    <p class="nota">{{ caso.descripcion }} Hipótesis: {{ caso.hipotesis|join('; ') }}. Datos sintéticos hipotéticos.</p>
+    <details open><summary>Parámetros de entrada</summary>
+      <table class="tabla compacta"><thead><tr><th>Parámetro</th><th>Valor</th></tr></thead><tbody>
+      {% for k,v in sim.params.items() %}<tr><td class="mono">{{ k }}</td><td class="mono">{{ v }}</td></tr>{% endfor %}
+      </tbody></table>
+    </details>
+  </section>
+
+  {% if sim.conclusiones %}
+  <section class="panel">
+    <h2>Conclusiones del módulo (escenario {{ sim.tipo }})</h2>
+    <div class="dos-col fino">
+      <div><h3>Conclusión numérica</h3><p>{{ sim.conclusiones.numerica }}</p></div>
+      <div><h3>Conclusión del problema</h3><p>{{ sim.conclusiones.problema }}</p></div>
+    </div>
+    {% if sim.conclusiones.sensibilidad %}<p><strong>Sensibilidad:</strong> {{ sim.conclusiones.sensibilidad }}</p>{% endif %}
+  </section>
+  {% endif %}
+
+  {% if sim.comparacion and sim.comparacion.filas %}
+  <section class="comparacion-box">
+    <h2>Comparación entre métodos</h2>
+    <p class="nota">Resumen consolidado de todos los métodos ejecutados en este escenario.</p>
+    <div class="tabla-wrap"><table class="tabla compacta"><thead><tr><th>Método</th><th>Estado</th><th>Conv.</th><th>Error abs</th><th>Error rel</th><th>Residual/norma</th><th>Iter/ref</th><th>Tiempo ms</th></tr></thead><tbody>
+    {% for f in sim.comparacion.filas %}<tr><td><strong>{{ f.metodo }}</strong></td><td>{{ f.estado }}</td><td>{{ 'Sí' if f.convergio else 'No' }}</td><td class="num">{{ '%.3e'|format(f.error_abs) if f.error_abs is not none else '—' }}</td><td class="num">{{ '%.3e'|format(f.error_rel) if f.error_rel is not none else 'No definido/ND' }}</td><td class="num">{{ '%.3e'|format(f.residual) if f.residual is not none and f.residual is number else '—' }}</td><td>{{ f.iteraciones }}</td><td>{{ '%.2f'|format(f.tiempo_ms) if f.tiempo_ms is not none else '—' }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  {% endif %}
 
   {% for e in sim.ejecuciones %}
-  {% set u = e.iteraciones[-1] if e.iteraciones else none %}
-  <section class="ejec" aria-labelledby="m{{ loop.index }}">
-    <div class="ejec-cab">
-      <h2 id="m{{ loop.index }}">{{ e.metodo }}</h2>
-      {% if e.convergio %}
-      <span class="pill pill-ok"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="m3 8.5 3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>convergió</span>
-      {% else %}
-      <span class="pill pill-mal"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>no convergió</span>
-      {% endif %}
-    </div>
-
+  <section class="ejec">
+    <div class="ejec-cab"><h2>{{ e.metodo }}</h2><span class="pill {{ 'pill-ok' if e.convergio else 'pill-mal' }}">{{ e.estado_detalle or e.valor.estado_detalle or ('Convergió' if e.convergio else 'No convergió') }}</span></div>
     <div class="kpis">
-      <div class="kpi"><span class="k-et">Aproximación final</span><strong>{% if e.valor.x is not none %}{{ '%.10g' % e.valor.x }}{% else %}Sin valor{% endif %}</strong></div>
-      {% if e.referencia and e.referencia.t_estrella is defined and e.referencia.t_estrella is not none %}
-      <div class="kpi"><span class="k-et">Referencia analítica</span><strong>{{ '%.10g' % e.referencia.t_estrella }}</strong></div>{% endif %}
-      {% if u and u.error_abs is not none %}<div class="kpi"><span class="k-et">Error absoluto final</span><strong>{{ '%.2e' % u.error_abs }}</strong></div>{% endif %}
-      <div class="kpi"><span class="k-et">Iteraciones</span><strong>{{ e.valor.n_iter }}</strong></div>
-      <div class="kpi"><span class="k-et">Tiempo</span><strong>{{ '%.2f' % e.tiempo_ms }} ms</strong></div>
+      <div class="kpi"><span class="k-et">Resultado</span><strong class="mono">{% if e.valor and e.valor.x is not none %}{{ e.valor.x }}{% else %}—{% endif %}</strong></div>
+      {% set me = e.metrica_error or {} %}
+      {% set eabs = me.get('error_abs', me.get('error_abs_max')) %}
+      {% set erel = me.get('error_rel', me.get('error_rel_max')) %}
+      {% set rn = me.get('residual_norma') %}
+      {% set rs = me.get('residual') %}
+      <div class="kpi"><span class="k-et">Error abs</span><strong>{% if eabs is not none %}{{ '%.3e'|format(eabs) }}{% if me.get('error_abs') is none and me.get('error_abs_max') is not none %} (máx){% endif %}{% else %}—{% endif %}</strong></div>
+      <div class="kpi"><span class="k-et">Error rel</span><strong>{% if erel is not none %}{{ '%.3e'|format(erel) }}{% if me.get('error_rel') is none and me.get('error_rel_max') is not none %} (máx){% endif %}{% else %}{{ me.get('error_rel_nota','—') }}{% endif %}</strong></div>
+      <div class="kpi"><span class="k-et">Residual/norma</span><strong>{% if rn is not none and rn is number %}{{ '%.3e'|format(rn) }}{% elif rs is not none and rs is number %}{{ '%.3e'|format(rs) }}{% else %}—{% endif %}</strong></div>
+      <div class="kpi"><span class="k-et">Iter/ref</span><strong>{{ e.iteraciones|length }}</strong></div>
+      <div class="kpi"><span class="k-et">Tiempo</span><strong>{{ '%.3f'|format(e.tiempo_ms) if e.tiempo_ms is not none else '—' }} ms</strong></div>
     </div>
 
-    {% if e.interpretacion %}
-    <div class="lectura">
-      <h3>Cómo leer este resultado</h3>
-      <p class="lectura-txt">{{ e.interpretacion.texto }}</p>
-      <ul class="diag">
-        {% for key, nombre, desc in DIAG %}
-        {% set on = e.interpretacion.banderas[key] %}
-        <li class="{{ 'on' if on else '' }}">
-          <span class="d-estado">{{ 'Activa' if on else 'Sin alerta' }}</span>
-          <div><strong>{{ nombre }}</strong><span>{{ desc }}</span></div>
-        </li>
-        {% endfor %}
-      </ul>
-    </div>{% endif %}
+    <details class="panel" open><summary>Procedimiento matemático</summary>
+      <details class="subpanel"><summary><strong>Datos de entrada</strong></summary>
+        {% set de = e.datos_entrada or (e.procedimiento.datos_entrada if e.procedimiento else none) %}
+        {% if de is mapping %}
+        <div class="tabla-wrap"><table class="tabla compacta"><tbody>
+          {% for k,v in de.items() %}<tr><th class="mono">{{ k }}</th><td class="mono">{{ v }}</td></tr>{% endfor %}
+        </tbody></table></div>
+        {% else %}
+        <p class="mono">{{ de if de is not none else '—' }}</p>
+        {% endif %}
+      </details>
+      <div class="math-block"><strong>Fórmula</strong><div>\({{ e.procedimiento.formula if e.procedimiento and e.procedimiento.formula else 'Ver\ método' }}\)</div></div>
+      <div class="math-block"><strong>Sustitución</strong><div>\({{ e.procedimiento.sustitucion if e.procedimiento and e.procedimiento.sustitucion else '—' }}\)</div></div>
+      <p><strong>Criterio de parada:</strong> {{ e.criterio_parada or '—' }}</p>
+      <p><strong>Estado:</strong> {{ e.estado_detalle or e.valor.estado_detalle or '—' }}. {{ e.valor.mensaje if e.valor and e.valor.mensaje else '' }}</p>
+      {% if e.procedimiento and e.procedimiento.desarrollo %}
+      <p><strong>Desarrollo (primeras iteraciones):</strong></p>
+      <ul>{% for d in e.procedimiento.desarrollo %}<li class="mono">{{ d }}</li>{% endfor %}</ul>
+      {% endif %}
+    </details>
+
+    <details class="panel"><summary>Verificación, error y sensibilidad</summary>
+      {% set ref = e.referencia or {} %}
+      <p><strong>Referencia:</strong> <span class="mono">{{ ref.get('tipo','—') }}{% if ref.get('valor') is not none %} = {{ ref.get('valor') }}{% endif %}{% if ref.get('nota') %} — {{ ref.get('nota') }}{% endif %}</span></p>
+      <div class="tabla-wrap"><table class="tabla compacta"><tbody>
+        <tr><th>Error abs</th><td class="num">{{ '%.3e'|format(eabs) if eabs is not none else '—' }}</td><th>Error rel</th><td class="num">{{ '%.3e'|format(erel) if erel is not none else me.get('error_rel_nota','No definido/ND') }}</td></tr>
+        <tr><th>Error %</th><td class="num">{{ '%.3e'|format(me.get('error_pct')) if me.get('error_pct') is not none else '—' }}</td><th>Residual/norma</th><td class="num">{{ '%.3e'|format(rn) if rn is not none and rn is number else ('%.3e'|format(rs) if rs is not none and rs is number else '—') }}</td></tr>
+      </tbody></table></div>
+      <p><strong>Conclusión numérica:</strong> {{ e.conclusion_numerica or (e.interpretacion.texto if e.interpretacion else '') }}</p>
+      <p><strong>Conclusión del problema:</strong> {{ e.conclusion_problema or '' }}</p>
+    </details>
 
     {% if e.iteraciones %}
-    <figure class="grafico">
-      <figcaption>Error y residual por iteración (escala logarítmica)</figcaption>
-      <canvas id="g{{ loop.index }}" height="120" role="img" aria-label="Gráfico de convergencia de {{ e.metodo }}"></canvas>
-    </figure>
-    <details class="panel iter">
-      <summary>Tabla de iteraciones ({{ e.iteraciones|length }})</summary>
-      <div class="tabla-wrap"><table class="tabla compacta">
-        <thead><tr><th>k</th><th>x<sub>k</sub></th><th>|f(x<sub>k</sub>)|</th><th>Error absoluto</th><th>Error relativo</th></tr></thead>
-        <tbody>{% for i in e.iteraciones %}<tr>
-          <td>{{ i.numero }}</td><td class="num">{{ '%.10g' % i.aproximacion[0] }}</td>
-          <td class="num">{{ '%.2e' % i.residual if i.residual is not none else '—' }}</td>
-          <td class="num">{{ '%.2e' % i.error_abs if i.error_abs is not none else '—' }}</td>
-          <td class="num">{{ '%.2e' % i.error_rel if i.error_rel is not none else 'NULL' }}</td></tr>{% endfor %}
-        </tbody></table></div>
+    <details class="panel" open><summary>Tabla de iteraciones/refinamientos ({{ e.iteraciones|length }})</summary>
+      <div class="iter-box"><table class="tabla compacta"><thead><tr><th>k</th><th>Aproximación</th><th>Residual/norma</th><th>Error abs</th><th>Error rel</th><th>Error iter</th></tr></thead><tbody>
+      {% for it in e.iteraciones %}<tr>
+        <td>{{ it.numero }}</td>
+        <td class="mono">{{ it.aproximacion }}</td>
+        <td class="num">{{ '%.3e'|format(it.residual) if it.residual is not none else '—' }}</td>
+        <td class="num">{{ '%.3e'|format(it.error_abs) if it.error_abs is not none else '—' }}</td>
+        <td class="num">{{ '%.3e'|format(it.error_rel) if it.error_rel is not none else '—' }}</td>
+        <td class="num">{{ '%.3e'|format(it.error_iter) if it.error_iter is defined and it.error_iter is not none else '—' }}</td>
+      </tr>{% endfor %}
+      </tbody></table></div>
     </details>
+    <div class="panel"><h3>Gráfico de convergencia/error</h3><canvas id="g{{ loop.index }}" height="110"></canvas></div>
     {% endif %}
   </section>
   {% endfor %}
 
-  {% if pendientes %}<p class="nota">Pendientes de implementar en este módulo: {{ pendientes | join(', ') }}.</p>{% endif %}
+  {% if sim.sensibilidad and sim.sensibilidad.filas %}
+  <section class="panel"><h2>Sensibilidad / perturbaciones</h2>
+    <div class="tabla-wrap"><table class="tabla compacta"><thead><tr><th>Parámetro</th><th>Original</th><th>Perturbado</th><th>Salida</th><th>Orig.</th><th>Pert.</th><th>Δabs</th><th>Δrel</th></tr></thead><tbody>
+    {% for f in sim.sensibilidad.filas %}<tr><td>{{ f.parametro }}</td><td class="num">{{ f.original }}</td><td class="num">{{ f.perturbado }}</td><td>{{ f.salida }}</td><td class="num">{{ '%.4g'|format(f.resultado_original) if f.resultado_original is number else f.resultado_original }}</td><td class="num">{{ '%.4g'|format(f.resultado_perturbado) if f.resultado_perturbado is number else f.resultado_perturbado }}</td><td class="num">{{ '%.3e'|format(f.delta_abs) if f.delta_abs is not none else '—' }}</td><td class="num">{{ '%.3e'|format(f.delta_rel) if f.delta_rel is not none else 'No definido/ND' }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    <p>{{ sim.sensibilidad.interpretacion }}</p>
+  </section>
+  {% endif %}
 
   <div class="acciones fin">
-    <form method="post" action="{{ url_for('relanzar', sid=sim.id) }}" class="js-run"><button class="btn" type="submit">Repetir con la misma semilla</button></form>
+    <form method="post" action="{{ url_for('relanzar', sid=sim.id) }}" class="js-run"><button class="btn" type="submit">Repetir con misma semilla</button></form>
     <a class="btn btn-sec" href="{{ url_for('modulo', slug=slug) }}">Volver al módulo</a>
-    <a class="btn btn-sec" href="{{ url_for('historial') }}">Ver historial</a>
+    <a class="btn btn-sec" href="{{ url_for('historial') }}">Historial</a>
   </div>
-  <p id="estado-carga" class="carga" role="status" hidden>Repitiendo la simulación y guardándola…</p>
+  <p id="estado-carga" class="carga" role="status" hidden>Repitiendo simulación…</p>
 </div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-(function () {
-  var datos = {{ sim.ejecuciones | map(attribute='iteraciones') | list | tojson }};
+(function(){
+  const ejec = {{ sim.ejecuciones|tojson }};
   if (typeof Chart === 'undefined') return;
-  var css = getComputedStyle(document.documentElement);
-  var v = function (n) { return css.getPropertyValue(n).trim(); };
-  var reducir = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  Chart.defaults.font.family = v('--font'); Chart.defaults.color = v('--muted');
-  datos.forEach(function (its, idx) {
-    var el = document.getElementById('g' + (idx + 1)); if (!el || !its.length) return;
-    new Chart(el, { type: 'line',
-      data: { labels: its.map(function (i) { return i.numero; }),
-        datasets: [
-          { label: 'Error absoluto', data: its.map(function (i) { return i.error_abs; }), borderColor: v('--c1'), borderWidth: 2.5, pointRadius: 0, tension: .15 },
-          { label: '|f(x_k)|', data: its.map(function (i) { return i.residual; }), borderColor: v('--c2'), borderWidth: 2.5, borderDash: [6, 4], pointRadius: 0, tension: .15 }] },
-      options: { animation: reducir ? false : { duration: 600 }, interaction: { mode: 'index', intersect: false },
-        scales: { y: { type: 'logarithmic', grid: { color: v('--grid') } },
-                  x: { title: { display: true, text: 'Iteración k' }, grid: { display: false } } },
-        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } } });
+  ejec.forEach((e, idx) => {
+    const el = document.getElementById('g'+(idx+1)); if(!el) return;
+    const it = e.iteraciones || []; if(!it.length) return;
+    const labels = it.map(x=>x.numero);
+    const ds = [];
+    if (it.some(x=>x.error_abs!=null)) ds.push({label:'Error abs', data:it.map(x=>x.error_abs), borderWidth:2, pointRadius:0});
+    if (it.some(x=>x.residual!=null)) ds.push({label:'Residual/norma', data:it.map(x=>x.residual), borderWidth:2, pointRadius:0});
+    if (it.some(x=>x.error_iter!=null)) ds.push({label:'Error iter', data:it.map(x=>x.error_iter), borderWidth:2, pointRadius:0});
+    if(!ds.length) ds.push({label:'Aprox[0]', data:it.map(x=>Array.isArray(x.aproximacion)?x.aproximacion[0]:null), borderWidth:2, pointRadius:0});
+    new Chart(el,{type:'line',data:{labels,datasets:ds},options:{responsive:true,animation:false,interaction:{mode:'index',intersect:false},scales:{y:{type: ds.some(d=>d.label!=='Aprox[0]')?'logarithmic':'linear'}}}});
   });
 })();
 </script>

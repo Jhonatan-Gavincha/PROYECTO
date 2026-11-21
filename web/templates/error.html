@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block titulo %}Error · SIMTELE-RISK{% endblock %}
+{% block contenido %}
+<div class="cont"><div class="panel"><h1>Error</h1><p>{{ mensaje }}</p>{% if detalle %}<details><summary>Detalle técnico</summary><pre class="mono">{{ detalle }}</pre></details>{% endif %}<p><a class="btn" href="{{ url_for('inicio') }}">Inicio</a></p></div></div>
+{% endblock %}
