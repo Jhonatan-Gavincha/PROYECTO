@@ -1,60 +1,117 @@
 {% extends "base.html" %}
+{% from "_macros.html" import escenario with context %}
 {% block titulo %}Simulación {{ sim.id }} · SIMTELE-RISK{% endblock %}
 {% block contenido %}
-<h1>Simulación #{{ sim.id }} · {{ sim.nombre }} · {{ ETIQUETA[sim.tipo] }}</h1>
-{% if igual is not none %}
-<p class="aviso {{ 'ok' if igual == '1' else 'mal' }}">
-  Relanzada desde la simulación #{{ de }}: resultado {{ 'IDÉNTICO' if igual == '1' else 'DISTINTO' }} (mismos parámetros y semilla).
-</p>{% endif %}
-<p class="meta">Fecha {{ sim.fecha }} UTC · semilla {{ sim.semilla }} · hash <span class="mono">{{ sim.hash_parametros[:16] }}…</span></p>
+{% set DIAG = [
+  ('riesgo_fisico', 'Riesgo físico', 'El fenómeno modelado supera un límite operativo, como la distancia disponible.'),
+  ('alta_exigencia', 'Alta exigencia', 'El problema está bien planteado, pero el cálculo es costoso.'),
+  ('mal_condicionamiento', 'Mal condicionamiento', 'Cambios mínimos en los datos producen cambios grandes en la solución, con cualquier método.'),
+  ('falta_convergencia', 'Falta de convergencia', 'El algoritmo no logró aproximar la solución en las condiciones dadas.') ] %}
+<div class="cont">
+  <nav class="migas" aria-label="Ruta"><a href="{{ url_for('historial') }}">Historial</a><span aria-hidden="true">/</span><span>Simulación {{ sim.id }}</span></nav>
+  <header class="tit-res">
+    <h1>{{ sim.nombre }}</h1>
+    <p class="sub">{{ escenario(sim.tipo) }}<span class="meta">Simulación {{ sim.id }}, {{ sim.fecha }} UTC, semilla {{ sim.semilla }}</span></p>
+    <p class="huella">Huella de parámetros <code class="mono">{{ sim.hash_parametros[:16] }}</code> <button type="button" class="enlace-btn" data-copy="{{ sim.hash_parametros }}">Copiar</button></p>
+  </header>
 
-<h2>Parámetros</h2>
-<table class="chica"><tbody>
-{% for k, v in sim.params.items() %}<tr><td class="mono">{{ k }}</td><td>{{ v }}</td></tr>{% endfor %}
-</tbody></table>
+  {% if igual is not none %}
+  <p class="aviso {{ 'ok' if igual == '1' else 'mal' }}" role="status">
+    Repetida desde la simulación {{ de }}: el resultado es {{ 'IDÉNTICO' if igual == '1' else 'DISTINTO' }} con los mismos parámetros y la misma semilla.
+  </p>{% endif %}
 
-{% for e in sim.ejecuciones %}
-<section class="ejecucion">
-  <h2>{{ e.metodo }} <span class="etiqueta {{ 'ok' if e.convergio else 'mal' }}">{{ 'convergió' if e.convergio else 'no convergió' }}</span></h2>
-  <p>{{ e.valor.mensaje }}{% if e.valor.x is not none %} Aproximación final: <strong class="mono">{{ '%.10g' % e.valor.x }}</strong>{% endif %}
-     · {{ e.valor.n_iter }} iteraciones · {{ '%.3f' % e.tiempo_ms }} ms</p>
-  {% if e.referencia %}<p>Referencia analítica: <span class="mono">{{ e.referencia.t_estrella if e.referencia.t_estrella is defined else e.referencia }}</span></p>{% endif %}
-  {% if e.interpretacion %}
-  <div class="interp">
-    <div class="banderas">
-      {% for k, v in e.interpretacion.banderas.items() %}<span class="bandera {{ 'on' if v else 'off' }}">{{ k.replace('_', ' ') }}</span>{% endfor %}
+  <details class="panel params-det">
+    <summary>Parámetros del escenario</summary>
+    <dl class="params">{% for k, v in sim.params.items() %}<div><dt class="mono">{{ k }}</dt><dd>{{ v }}</dd></div>{% endfor %}</dl>
+  </details>
+
+  {% for e in sim.ejecuciones %}
+  {% set u = e.iteraciones[-1] if e.iteraciones else none %}
+  <section class="ejec" aria-labelledby="m{{ loop.index }}">
+    <div class="ejec-cab">
+      <h2 id="m{{ loop.index }}">{{ e.metodo }}</h2>
+      {% if e.convergio %}
+      <span class="pill pill-ok"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="m3 8.5 3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>convergió</span>
+      {% else %}
+      <span class="pill pill-mal"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>no convergió</span>
+      {% endif %}
     </div>
-    <p>{{ e.interpretacion.texto }}</p>
-  </div>{% endif %}
-  {% if e.iteraciones %}
-  <canvas id="g{{ loop.index }}" height="110"></canvas>
-  <details><summary>Tabla de iteraciones</summary>
-  <table class="chica"><thead><tr><th>k</th><th>x_k</th><th>|f(x_k)|</th><th>Error abs.</th><th>Error rel.</th></tr></thead><tbody>
-  {% for i in e.iteraciones %}<tr><td>{{ i.numero }}</td><td class="mono">{{ '%.10g' % i.aproximacion[0] }}</td>
-    <td class="mono">{{ '%.2e' % i.residual if i.residual is not none else '—' }}</td>
-    <td class="mono">{{ '%.2e' % i.error_abs if i.error_abs is not none else '—' }}</td>
-    <td class="mono">{{ '%.2e' % i.error_rel if i.error_rel is not none else 'NULL' }}</td></tr>{% endfor %}
-  </tbody></table></details>
-  {% endif %}
-</section>
-{% endfor %}
 
-{% if pendientes %}<p class="pend">Métodos de este módulo aún pendientes de implementar: {{ pendientes | join(', ') }}.</p>{% endif %}
+    <div class="kpis">
+      <div class="kpi"><span class="k-et">Aproximación final</span><strong>{% if e.valor.x is not none %}{{ '%.10g' % e.valor.x }}{% else %}Sin valor{% endif %}</strong></div>
+      {% if e.referencia and e.referencia.t_estrella is defined and e.referencia.t_estrella is not none %}
+      <div class="kpi"><span class="k-et">Referencia analítica</span><strong>{{ '%.10g' % e.referencia.t_estrella }}</strong></div>{% endif %}
+      {% if u and u.error_abs is not none %}<div class="kpi"><span class="k-et">Error absoluto final</span><strong>{{ '%.2e' % u.error_abs }}</strong></div>{% endif %}
+      <div class="kpi"><span class="k-et">Iteraciones</span><strong>{{ e.valor.n_iter }}</strong></div>
+      <div class="kpi"><span class="k-et">Tiempo</span><strong>{{ '%.2f' % e.tiempo_ms }} ms</strong></div>
+    </div>
 
-<form method="post" action="{{ url_for('relanzar', sid=sim.id) }}"><button type="submit">Relanzar con la misma semilla</button></form>
+    {% if e.interpretacion %}
+    <div class="lectura">
+      <h3>Cómo leer este resultado</h3>
+      <p class="lectura-txt">{{ e.interpretacion.texto }}</p>
+      <ul class="diag">
+        {% for key, nombre, desc in DIAG %}
+        {% set on = e.interpretacion.banderas[key] %}
+        <li class="{{ 'on' if on else '' }}">
+          <span class="d-estado">{{ 'Activa' if on else 'Sin alerta' }}</span>
+          <div><strong>{{ nombre }}</strong><span>{{ desc }}</span></div>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>{% endif %}
+
+    {% if e.iteraciones %}
+    <figure class="grafico">
+      <figcaption>Error y residual por iteración (escala logarítmica)</figcaption>
+      <canvas id="g{{ loop.index }}" height="120" role="img" aria-label="Gráfico de convergencia de {{ e.metodo }}"></canvas>
+    </figure>
+    <details class="panel iter">
+      <summary>Tabla de iteraciones ({{ e.iteraciones|length }})</summary>
+      <div class="tabla-wrap"><table class="tabla compacta">
+        <thead><tr><th>k</th><th>x<sub>k</sub></th><th>|f(x<sub>k</sub>)|</th><th>Error absoluto</th><th>Error relativo</th></tr></thead>
+        <tbody>{% for i in e.iteraciones %}<tr>
+          <td>{{ i.numero }}</td><td class="num">{{ '%.10g' % i.aproximacion[0] }}</td>
+          <td class="num">{{ '%.2e' % i.residual if i.residual is not none else '—' }}</td>
+          <td class="num">{{ '%.2e' % i.error_abs if i.error_abs is not none else '—' }}</td>
+          <td class="num">{{ '%.2e' % i.error_rel if i.error_rel is not none else 'NULL' }}</td></tr>{% endfor %}
+        </tbody></table></div>
+    </details>
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  {% if pendientes %}<p class="nota">Pendientes de implementar en este módulo: {{ pendientes | join(', ') }}.</p>{% endif %}
+
+  <div class="acciones fin">
+    <form method="post" action="{{ url_for('relanzar', sid=sim.id) }}" class="js-run"><button class="btn" type="submit">Repetir con la misma semilla</button></form>
+    <a class="btn btn-sec" href="{{ url_for('modulo', slug=slug) }}">Volver al módulo</a>
+    <a class="btn btn-sec" href="{{ url_for('historial') }}">Ver historial</a>
+  </div>
+  <p id="estado-carga" class="carga" role="status" hidden>Repitiendo la simulación y guardándola…</p>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-const datos = {{ sim.ejecuciones | map(attribute='iteraciones') | list | tojson }};
-datos.forEach((its, idx) => {
-  const el = document.getElementById('g' + (idx + 1));
-  if (!el || !its.length || typeof Chart === 'undefined') return;
-  new Chart(el, {type: 'line',
-    data: {labels: its.map(i => i.numero),
-      datasets: [{label: 'Error absoluto', data: its.map(i => i.error_abs), borderWidth: 2, pointRadius: 0},
-                 {label: '|f(x_k)|', data: its.map(i => i.residual), borderWidth: 2, pointRadius: 0}]},
-    options: {scales: {y: {type: 'logarithmic', title: {display: true, text: 'escala log'}},
-                       x: {title: {display: true, text: 'iteración k'}}}}});
-});
+(function () {
+  var datos = {{ sim.ejecuciones | map(attribute='iteraciones') | list | tojson }};
+  if (typeof Chart === 'undefined') return;
+  var css = getComputedStyle(document.documentElement);
+  var v = function (n) { return css.getPropertyValue(n).trim(); };
+  var reducir = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  Chart.defaults.font.family = v('--font'); Chart.defaults.color = v('--muted');
+  datos.forEach(function (its, idx) {
+    var el = document.getElementById('g' + (idx + 1)); if (!el || !its.length) return;
+    new Chart(el, { type: 'line',
+      data: { labels: its.map(function (i) { return i.numero; }),
+        datasets: [
+          { label: 'Error absoluto', data: its.map(function (i) { return i.error_abs; }), borderColor: v('--c1'), borderWidth: 2.5, pointRadius: 0, tension: .15 },
+          { label: '|f(x_k)|', data: its.map(function (i) { return i.residual; }), borderColor: v('--c2'), borderWidth: 2.5, borderDash: [6, 4], pointRadius: 0, tension: .15 }] },
+      options: { animation: reducir ? false : { duration: 600 }, interaction: { mode: 'index', intersect: false },
+        scales: { y: { type: 'logarithmic', grid: { color: v('--grid') } },
+                  x: { title: { display: true, text: 'Iteración k' }, grid: { display: false } } },
+        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } } });
+  });
+})();
 </script>
 {% endblock %}

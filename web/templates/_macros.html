@@ -1,0 +1,13 @@
+{% macro icono(slug) -%}
+<svg class="ico" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if slug == 'detencion' %}<path d="M8 3h8l5 5v8l-5 5H8l-5-5V8z"/><path d="M8 12h8"/>
+{%- elif slug == 'deterioro' %}<path d="M4 17a8 8 0 1 1 16 0"/><path d="m12 17 4-5"/><circle cx="12" cy="17" r="1"/>
+{%- elif slug == 'oscilaciones' %}<path d="M2 12c2-6 4-6 6 0s4 6 6 0 4-6 6 0"/>
+{%- else %}<circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="6" r="1.6"/><path d="m7.2 16.8 3.6-3.6M13.2 10.8l3.6-3.6" stroke-dasharray="1.5 2.5"/>
+{%- endif %}</svg>
+{%- endmacro %}
+
+{% macro escenario(tipo) -%}
+{%- set cls = {'NORMAL':'normal','ESTRES':'estres','MAL_CONDICIONADO':'mal'} -%}
+<span class="esc esc-{{ cls[tipo] }}"><i aria-hidden="true"></i>{{ ETIQUETA[tipo] }}</span>
+{%- endmacro %}

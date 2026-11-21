@@ -1,26 +1,44 @@
 {% extends "base.html" %}
+{% from "_macros.html" import icono, escenario with context %}
 {% block titulo %}{{ caso.nombre }} · SIMTELE-RISK{% endblock %}
 {% block contenido %}
-<h1>{{ caso.n }}. {{ caso.nombre }}</h1>
-<p><strong>Pregunta:</strong> {{ caso.pregunta }}</p>
-<p class="modelo"><strong>Modelo:</strong> {{ caso.modelo }}</p>
-<p><strong>Métodos del módulo:</strong> {{ caso.metodos | join(', ') }}</p>
-<h2>Escenarios</h2>
-<table>
-  <thead><tr><th>Escenario</th><th>Definición (supuestos sintéticos)</th><th></th></tr></thead>
-  <tbody>
-  {% for t in tipos %}
-  <tr>
-    <td><strong>{{ ETIQUETA[t] }}</strong></td>
-    <td>{{ escenarios[t].descripcion }}</td>
-    <td>
-      <form method="post" action="{{ url_for('ejecutar', slug=slug) }}">
+{% set evidencia = {
+  'NORMAL': 'Línea base. Los métodos deben coincidir con la solución exacta.',
+  'ESTRES': 'Exige más al problema. ¿El método sigue siendo preciso y qué cambia en el riesgo?',
+  'MAL_CONDICIONADO': 'Provoca fallos a propósito: muestra cuándo un método no aplica o el problema es hipersensible.' } %}
+<div class="cont">
+  <nav class="migas" aria-label="Ruta"><a href="{{ url_for('inicio') }}">Inicio</a><span aria-hidden="true">/</span><span>{{ caso.nombre }}</span></nav>
+  <header class="tit-mod">
+    <span class="nodo grande">{{ icono(slug) }}</span>
+    <div><h1>{{ caso.nombre }}</h1><p class="lead">{{ caso.pregunta }}</p></div>
+  </header>
+
+  <div class="dos-col fino">
+    <section class="panel">
+      <h2>Modelo matemático</h2>
+      <p class="formula">{{ caso.modelo }}</p>
+    </section>
+    <section class="panel">
+      <h2>Métodos del módulo</h2>
+      <ul class="chips">{% for m in caso.metodos %}<li>{{ m }}</li>{% endfor %}</ul>
+    </section>
+  </div>
+
+  <h2>Elige un escenario</h2>
+  <div class="escenarios">
+    {% for t in tipos %}
+    <article class="panel esc-card">
+      <h3>{{ escenario(t) }}</h3>
+      <p class="params-txt">{{ escenarios[t].descripcion }}</p>
+      <p class="evid">{{ evidencia[t] }}</p>
+      <form method="post" action="{{ url_for('ejecutar', slug=slug) }}" class="js-run">
         <input type="hidden" name="tipo" value="{{ t }}">
-        <button type="submit">Ejecutar</button>
+        <button class="btn" type="submit">Ejecutar</button>
       </form>
-    </td>
-  </tr>
-  {% endfor %}
-  </tbody>
-</table>
+    </article>
+    {% endfor %}
+  </div>
+  <p id="estado-carga" class="carga" role="status" hidden>Calculando y guardando la simulación. Si la base de datos estaba inactiva, puede tardar unos segundos.</p>
+  <p class="nota">Cada ejecución se guarda con su semilla y su huella de parámetros, para poder reabrirla o repetirla desde el historial.</p>
+</div>
 {% endblock %}

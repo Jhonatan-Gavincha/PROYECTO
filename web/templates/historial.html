@@ -1,19 +1,42 @@
 {% extends "base.html" %}
+{% from "_macros.html" import escenario with context %}
 {% block titulo %}Historial · SIMTELE-RISK{% endblock %}
 {% block contenido %}
-<h1>Historial de simulaciones</h1>
-{% if not sims %}<p>Aún no hay simulaciones guardadas. Ejecuta un escenario desde cualquier módulo.</p>{% else %}
-<table>
-  <thead><tr><th>#</th><th>Fecha (UTC)</th><th>Caso</th><th>Escenario</th><th>Estado</th><th>Hash</th><th></th></tr></thead>
-  <tbody>
-  {% for s in sims %}
-  <tr>
-    <td>{{ s.id }}</td><td>{{ s.fecha }}</td><td>{{ s.nombre }}</td><td>{{ ETIQUETA[s.tipo] }}</td>
-    <td>{{ s.estado }}</td><td class="mono">{{ s.hash_parametros[:10] }}…</td>
-    <td><a href="{{ url_for('resultado', sid=s.id) }}">Abrir</a></td>
-  </tr>
-  {% endfor %}
-  </tbody>
-</table>
-{% endif %}
+<div class="cont">
+  <h1>Historial de simulaciones</h1>
+  {% if not sims %}
+  <div class="vacio panel">
+    <h2>Todavía no hay simulaciones</h2>
+    <p>Ejecuta un escenario desde cualquier módulo y aparecerá aquí, listo para reabrir o repetir.</p>
+    <p><a class="btn" href="{{ url_for('modulo', slug='deterioro') }}">Probar con Deterioro</a></p>
+  </div>
+  {% else %}
+  <div class="filtros" role="group" aria-label="Filtrar por módulo">
+    <button type="button" class="filtro activo" data-f="">Todos</button>
+    {% for slug, c in CASOS.items() %}<button type="button" class="filtro" data-f="{{ c.nombre }}">{{ c.nombre.split(' ')[0] }}</button>{% endfor %}
+  </div>
+  <div class="tabla-wrap">
+  <table class="tabla">
+    <thead><tr><th>N.º</th><th>Fecha (UTC)</th><th>Módulo</th><th>Escenario</th><th>Estado</th><th>Huella</th><th><span class="sr">Acciones</span></th></tr></thead>
+    <tbody>
+    {% for s in sims %}
+    <tr data-caso="{{ s.nombre }}">
+      <td>{{ s.id }}</td><td>{{ s.fecha }}</td><td>{{ s.nombre }}</td><td>{{ escenario(s.tipo) }}</td>
+      <td>{{ s.estado.capitalize() }}</td><td class="mono">{{ s.hash_parametros[:10] }}</td>
+      <td><a class="enlace-fuerte" href="{{ url_for('resultado', sid=s.id) }}">Abrir</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <script>
+  document.querySelectorAll('.filtro').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.filtro').forEach(function (x) { x.classList.toggle('activo', x === b); });
+      document.querySelectorAll('tbody tr').forEach(function (r) { r.hidden = b.dataset.f && r.dataset.caso !== b.dataset.f; });
+    });
+  });
+  </script>
+  {% endif %}
+</div>
 {% endblock %}
